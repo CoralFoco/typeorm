@@ -533,7 +533,7 @@ export class EntityManager {
      * Does not check if entity exist in the database.
      * Condition(s) cannot be empty.
      */
-    delete<Entity>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>|string, criteria: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|any): Promise<DeleteResult> {
+    delete<Entity>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>|string, criteria: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|any,  userLogin?: string): Promise<DeleteResult> {
 
         // if user passed empty criteria or empty list of criterias, then throw an error
         if (criteria === undefined ||
@@ -553,14 +553,14 @@ export class EntityManager {
                 .delete()
                 .from(targetOrEntity)
                 .whereInIds(criteria)
-                .execute();
+                .execute(userLogin);
 
         } else {
             return this.createQueryBuilder()
                 .delete()
                 .from(targetOrEntity)
                 .where(criteria)
-                .execute();
+                .execute(userLogin);
         }
     }
 
