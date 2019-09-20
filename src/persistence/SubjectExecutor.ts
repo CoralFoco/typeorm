@@ -181,11 +181,11 @@ export class SubjectExecutor {
     protected broadcastBeforeEventsForAll(): BroadcasterResult {
         const result = new BroadcasterResult();
         if (this.insertSubjects.length)
-            this.insertSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeInsertEvent(result, subject.metadata, subject.entity!));
+            this.insertSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeInsertEvent(result, subject.metadata, subject.entity || subject.identifier));
         if (this.updateSubjects.length)
-            this.updateSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeUpdateEvent(result, subject.metadata, subject.entity!, subject.databaseEntity, subject.diffColumns, subject.diffRelations));
+            this.updateSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeUpdateEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, subject.diffColumns, subject.diffRelations));
         if (this.removeSubjects.length)
-            this.removeSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeRemoveEvent(result, subject.metadata, subject.entity!, subject.databaseEntity));
+            this.removeSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeRemoveEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity));
         return result;
     }
 
