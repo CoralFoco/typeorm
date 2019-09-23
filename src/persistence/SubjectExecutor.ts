@@ -87,14 +87,14 @@ export class SubjectExecutor {
      * Executes all operations over given array of subjects.
      * Executes queries using given query runner.
      */
-    async execute(): Promise<void> {
+    async execute(userLogin: string): Promise<void> {
         // console.time("SubjectExecutor.execute");
 
         // broadcast "before" events before we start insert / update / remove operations
         let broadcasterResult: BroadcasterResult | undefined = undefined;
         if (!this.options || this.options.listeners !== false) {
             // console.time(".broadcastBeforeEventsForAll");
-            broadcasterResult = this.broadcastBeforeEventsForAll();
+            broadcasterResult = this.broadcastBeforeEventsForAll(userLogin);
             if (broadcasterResult.promises.length > 0) await Promise.all(broadcasterResult.promises);
             // console.timeEnd(".broadcastBeforeEventsForAll");
         }
@@ -117,7 +117,7 @@ export class SubjectExecutor {
         // execute all insert operations
         // console.time(".insertion");
         this.insertSubjects = new SubjectTopoligicalSorter(this.insertSubjects).sort("insert");
-        await this.executeInsertOperations();
+        await this.executeInsertOperations(userLogin);
         // console.timeEnd(".insertion");
 
         // recompute update operations since insertion can create updation operations for the
@@ -126,13 +126,13 @@ export class SubjectExecutor {
 
         // execute update operations
         // console.time(".updation");
-        await this.executeUpdateOperations();
+        await this.executeUpdateOperations(userLogin);
         // console.timeEnd(".updation");
 
         // make sure our remove subjects are sorted (using topological sorting) when multiple entities are passed for the removal
         // console.time(".removal");
         this.removeSubjects = new SubjectTopoligicalSorter(this.removeSubjects).sort("delete");
-        await this.executeRemoveOperations();
+        await this.executeRemoveOperations(userLogin);
         // console.timeEnd(".removal");
 
         // update all special columns in persisted entities, like inserted id or remove ids from the removed entities
@@ -143,7 +143,7 @@ export class SubjectExecutor {
         // finally broadcast "after" events after we finish insert / update / remove operations
         if (!this.options || this.options.listeners !== false) {
             // console.time(".broadcastAfterEventsForAll");
-            broadcasterResult = this.broadcastAfterEventsForAll();
+            broadcasterResult = this.broadcastAfterEventsForAll(userLogin);
             if (broadcasterResult.promises.length > 0) await Promise.all(broadcasterResult.promises);
             // console.timeEnd(".broadcastAfterEventsForAll");
         }
@@ -178,14 +178,14 @@ export class SubjectExecutor {
     /**
      * Broadcasts "BEFORE_INSERT", "BEFORE_UPDATE", "BEFORE_REMOVE" events for all given subjects.
      */
-    protected broadcastBeforeEventsForAll(): BroadcasterResult {
+    protected broadcastBeforeEventsForAll(userLogin: string): BroadcasterResult {
         const result = new BroadcasterResult();
         if (this.insertSubjects.length)
-            this.insertSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeInsertEvent(result, subject.metadata, subject.entity || subject.identifier));
+            this.insertSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeInsertEvent(result, subject.metadata, subject.entity || subject.identifier, userLogin));
         if (this.updateSubjects.length)
-            this.updateSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeUpdateEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, subject.diffColumns, subject.diffRelations));
+            this.updateSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeUpdateEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, subject.diffColumns, subject.diffRelations, userLogin));
         if (this.removeSubjects.length)
-            this.removeSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeRemoveEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity));
+            this.removeSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastBeforeRemoveEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, undefined, userLogin));
         return result;
     }
 
@@ -194,21 +194,21 @@ export class SubjectExecutor {
      * Returns void if there wasn't any listener or subscriber executed.
      * Note: this method has a performance-optimized code organization.
      */
-    protected broadcastAfterEventsForAll(): BroadcasterResult {
+    protected broadcastAfterEventsForAll(userLogin: string): BroadcasterResult {
         const result = new BroadcasterResult();
         if (this.insertSubjects.length)
-            this.insertSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastAfterInsertEvent(result, subject.metadata, subject.entity || subject.identifier));
+            this.insertSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastAfterInsertEvent(result, subject.metadata, subject.entity || subject.identifier, userLogin));
         if (this.updateSubjects.length)
-            this.updateSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastAfterUpdateEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, subject.diffColumns, subject.diffRelations));
+            this.updateSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastAfterUpdateEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, subject.diffColumns, subject.diffRelations, userLogin));
         if (this.removeSubjects.length)
-            this.removeSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastAfterRemoveEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity));
+            this.removeSubjects.forEach(subject => this.queryRunner.broadcaster.broadcastAfterRemoveEvent(result, subject.metadata, subject.entity || subject.identifier, subject.databaseEntity, userLogin));
         return result;
     }
 
     /**
      * Executes insert operations.
      */
-    protected async executeInsertOperations(): Promise<void> {
+    protected async executeInsertOperations(userLogin: string): Promise<void> {
         // group insertion subjects to make bulk insertions
         const [groupedInsertSubjects, groupedInsertSubjectKeys] = this.groupBulkSubjects(this.insertSubjects, "insert");
 
@@ -284,7 +284,7 @@ export class SubjectExecutor {
                         .values(bulkInsertMaps)
                         .updateEntity(this.options && this.options.reload === false ? false : true)
                         .callListeners(false)
-                        .execute();
+                        .execute(userLogin);
 
                     bulkInsertSubjects.forEach((subject, index) => {
                         subject.identifier = insertResult.identifiers[index];
@@ -310,7 +310,7 @@ export class SubjectExecutor {
                             .values(subject.insertedValueSet)
                             .updateEntity(this.options && this.options.reload === false ? false : true)
                             .callListeners(false)
-                            .execute()
+                            .execute(userLogin)
                             .then(insertResult => {
                                 subject.identifier = insertResult.identifiers[0];
                                 subject.generatedMap = insertResult.generatedMaps[0];
@@ -318,10 +318,10 @@ export class SubjectExecutor {
 
                         // for tree tables we execute additional queries
                         if (subject.metadata.treeType === "closure-table") {
-                            await new ClosureSubjectExecutor(this.queryRunner).insert(subject);
+                            await new ClosureSubjectExecutor(this.queryRunner).insert(subject, userLogin);
 
                         } else if (subject.metadata.treeType === "materialized-path") {
-                            await new MaterializedPathSubjectExecutor(this.queryRunner).insert(subject);
+                            await new MaterializedPathSubjectExecutor(this.queryRunner).insert(subject, userLogin);
                         }
                     });
                 }
@@ -344,7 +344,7 @@ export class SubjectExecutor {
     /**
      * Updates all given subjects in the database.
      */
-    protected async executeUpdateOperations(): Promise<void> {
+    protected async executeUpdateOperations(userLogin: string): Promise<void> {
         await Promise.all(this.updateSubjects.map(async subject => {
 
             if (!subject.identifier)
@@ -392,7 +392,7 @@ export class SubjectExecutor {
                     updateQueryBuilder.where(subject.identifier);
                 }
 
-                const updateResult = await updateQueryBuilder.execute();
+                const updateResult = await updateQueryBuilder.execute(userLogin);
                 subject.generatedMap = updateResult.generatedMaps[0];
                 if (subject.generatedMap) {
                     subject.metadata.columns.forEach(column => {
@@ -424,7 +424,7 @@ export class SubjectExecutor {
      *
      * todo: we need to apply topological sort here as well
      */
-    protected async executeRemoveOperations(): Promise<void> {
+    protected async executeRemoveOperations(userLogin: string): Promise<void> {
         // group insertion subjects to make bulk insertions
         const [groupedRemoveSubjects, groupedRemoveSubjectKeys] = this.groupBulkSubjects(this.removeSubjects, "delete");
 
@@ -455,7 +455,7 @@ export class SubjectExecutor {
                     .from(subjects[0].metadata.target)
                     .where(deleteMaps)
                     .callListeners(false)
-                    .execute();
+                    .execute(userLogin);
             }
         });
     }

@@ -31,7 +31,8 @@ export class Broadcaster {
     broadcastBeforeInsertEvent(
         result: BroadcasterResult,
         metadata: EntityMetadata,
-        entity?: ObjectLiteral
+        entity?: ObjectLiteral,
+        userLogin?: string
     ): void {
         if (entity && metadata.beforeInsertListeners.length) {
             metadata.beforeInsertListeners.forEach(listener => {
@@ -55,7 +56,8 @@ export class Broadcaster {
                         queryRunner: this.queryRunner,
                         manager: this.queryRunner.manager,
                         entity: entity,
-                        metadata: metadata
+                        metadata: metadata,
+                        userLogin
                     });
                     if (executionResult instanceof Promise)
                         result.promises.push(executionResult);
@@ -79,7 +81,8 @@ export class Broadcaster {
         entity?: ObjectLiteral,
         databaseEntity?: ObjectLiteral,
         updatedColumns?: ColumnMetadata[],
-        updatedRelations?: RelationMetadata[]
+        updatedRelations?: RelationMetadata[],
+        userLogin?: string
     ): void {
         // todo: send relations too?
         if (entity && metadata.beforeUpdateListeners.length) {
@@ -107,7 +110,8 @@ export class Broadcaster {
                         metadata: metadata,
                         databaseEntity: databaseEntity,
                         updatedColumns: updatedColumns || [],
-                        updatedRelations: updatedRelations || []
+                        updatedRelations: updatedRelations || [],
+                        userLogin
                     });
                     if (executionResult instanceof Promise)
                         result.promises.push(executionResult);
@@ -180,7 +184,8 @@ export class Broadcaster {
     broadcastAfterInsertEvent(
         result: BroadcasterResult,
         metadata: EntityMetadata,
-        entity?: ObjectLiteral
+        entity?: ObjectLiteral,
+        userLogin?: string
     ): void {
         if (entity && metadata.afterInsertListeners.length) {
             metadata.afterInsertListeners.forEach(listener => {
@@ -204,7 +209,8 @@ export class Broadcaster {
                         queryRunner: this.queryRunner,
                         manager: this.queryRunner.manager,
                         entity: entity,
-                        metadata: metadata
+                        metadata: metadata,
+                        userLogin
                     });
                     if (executionResult instanceof Promise)
                         result.promises.push(executionResult);
@@ -228,7 +234,8 @@ export class Broadcaster {
         entity?: ObjectLiteral,
         databaseEntity?: ObjectLiteral,
         updatedColumns?: ColumnMetadata[],
-        updatedRelations?: RelationMetadata[]
+        updatedRelations?: RelationMetadata[],
+        userLogin?: string
     ): void {
         if (entity && metadata.afterUpdateListeners.length) {
             metadata.afterUpdateListeners.forEach(listener => {
@@ -255,7 +262,8 @@ export class Broadcaster {
                         metadata: metadata,
                         databaseEntity: databaseEntity,
                         updatedColumns: updatedColumns || [],
-                        updatedRelations: updatedRelations || []
+                        updatedRelations: updatedRelations || [],
+                        userLogin
                     });
                     if (executionResult instanceof Promise)
                         result.promises.push(executionResult);
@@ -277,7 +285,8 @@ export class Broadcaster {
         result: BroadcasterResult,
         metadata: EntityMetadata,
         entity?: ObjectLiteral,
-        databaseEntity?: ObjectLiteral
+        databaseEntity?: ObjectLiteral,
+        userLogin?: string
     ): void {
         if (entity && metadata.afterRemoveListeners.length) {
             metadata.afterRemoveListeners.forEach(listener => {
@@ -303,7 +312,8 @@ export class Broadcaster {
                         entity: entity,
                         metadata: metadata,
                         databaseEntity: databaseEntity,
-                        entityId: metadata.getEntityIdMixedMap(databaseEntity)
+                        entityId: metadata.getEntityIdMixedMap(databaseEntity),
+                        userLogin
                     });
                     if (executionResult instanceof Promise)
                         result.promises.push(executionResult);

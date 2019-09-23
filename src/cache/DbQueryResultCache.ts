@@ -227,7 +227,7 @@ export class DbQueryResultCache implements QueryResultCache {
             qb.where(`${qb.escape("identifier")} = :condition`, {
                 condition: insertedValues.identifier
             });
-            await qb.execute();
+            await qb.execute("");
         } else if (savedCache && savedCache.query) {
             // if exist then update
             const qb = queryRunner.manager
@@ -245,7 +245,7 @@ export class DbQueryResultCache implements QueryResultCache {
                 });
             }
 
-            await qb.execute();
+            await qb.execute("");
         } else {
             // otherwise insert
             await queryRunner.manager
@@ -253,7 +253,7 @@ export class DbQueryResultCache implements QueryResultCache {
                 .insert()
                 .into(this.queryResultCacheTable)
                 .values(insertedValues)
-                .execute();
+                .execute("");
         }
     }
 
@@ -285,7 +285,7 @@ export class DbQueryResultCache implements QueryResultCache {
                     .where(`${qb.escape("identifier")} = :identifier`, {
                         identifier
                     })
-                    .execute(userLogin);
+                    .execute(userLogin || "");
             })
         );
     }

@@ -352,47 +352,47 @@ export class EntityManager {
      * Saves all given entities in the database.
      * If entities do not exist in the database then inserts, otherwise updates.
      */
-    save<Entity>(entities: Entity[], options?: SaveOptions): Promise<Entity[]>;
+    save<Entity>(entities: Entity[], options?: SaveOptions, userLogin?: string): Promise<Entity[]>;
 
     /**
      * Saves all given entities in the database.
      * If entities do not exist in the database then inserts, otherwise updates.
      */
-    save<Entity>(entity: Entity, options?: SaveOptions): Promise<Entity>;
+    save<Entity>(entity: Entity, options?: SaveOptions, userLogin?: string): Promise<Entity>;
 
     /**
      * Saves all given entities in the database.
      * If entities do not exist in the database then inserts, otherwise updates.
      */
-    save<Entity, T extends DeepPartial<Entity>>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>, entities: T[], options?: SaveOptions): Promise<T[]>;
+    save<Entity, T extends DeepPartial<Entity>>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>, entities: T[], options?: SaveOptions, userLogin?: string): Promise<T[]>;
 
     /**
      * Saves all given entities in the database.
      * If entities do not exist in the database then inserts, otherwise updates.
      */
-    save<Entity, T extends DeepPartial<Entity>>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>, entity: T, options?: SaveOptions): Promise<T>;
+    save<Entity, T extends DeepPartial<Entity>>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>, entity: T, options?: SaveOptions, userLogin?: string): Promise<T>;
 
     /**
      * Saves all given entities in the database.
      * If entities do not exist in the database then inserts, otherwise updates.
      */
-    save<T>(targetOrEntity: string, entities: T[], options?: SaveOptions): Promise<T[]>;
+    save<T>(targetOrEntity: string, entities: T[], options?: SaveOptions, userLogin?: string): Promise<T[]>;
 
     /**
      * Saves all given entities in the database.
      * If entities do not exist in the database then inserts, otherwise updates.
      */
-    save<T>(targetOrEntity: string, entity: T, options?: SaveOptions): Promise<T>;
+    save<T>(targetOrEntity: string, entity: T, options?: SaveOptions, userLogin?: string): Promise<T>;
 
     /**
      * Saves a given entity in the database.
      */
-    save<Entity, T extends DeepPartial<Entity>>(targetOrEntity: (T|T[])|ObjectType<Entity>|EntitySchema<Entity>|string, maybeEntityOrOptions?: T|T[], maybeOptions?: SaveOptions): Promise<T|T[]> {
+    save<Entity, T extends DeepPartial<Entity>>(targetOrEntity: (T|T[])|ObjectType<Entity>|EntitySchema<Entity>|string, maybeEntityOrOptions?: T|T[], maybeOptionsOrUserLogin?: SaveOptions | string, userLogin?: string): Promise<T|T[]> {
 
         // normalize mixed parameters
         let target = (arguments.length > 1 && (targetOrEntity instanceof Function || targetOrEntity instanceof EntitySchema || typeof targetOrEntity === "string")) ? targetOrEntity as Function|string : undefined;
         const entity: T|T[] = target ? maybeEntityOrOptions as T|T[] : targetOrEntity as T|T[];
-        const options = target ? maybeOptions : maybeEntityOrOptions as SaveOptions;
+        const options = target ? (maybeOptionsOrUserLogin as SaveOptions) : maybeEntityOrOptions as SaveOptions;
 
         if (target instanceof EntitySchema)
             target = target.options.name;
@@ -403,7 +403,7 @@ export class EntityManager {
 
         // execute save operation
         return new EntityPersistExecutor(this.connection, this.queryRunner, "save", target, entity, options)
-            .execute()
+            .execute(userLogin ? userLogin : typeof maybeOptionsOrUserLogin === "string" ? maybeOptionsOrUserLogin as string : "")
             .then(() => entity);
     }
 
@@ -450,7 +450,7 @@ export class EntityManager {
     /**
      * Removes a given entity from the database.
      */
-    remove<Entity>(targetOrEntity: (Entity|Entity[])|Function|string, maybeEntityOrOptions?: Entity|Entity[], maybeOptions?: RemoveOptions): Promise<Entity|Entity[]> {
+    remove<Entity>(targetOrEntity: (Entity|Entity[])|Function|string, maybeEntityOrOptions?: Entity|Entity[], maybeOptions?: RemoveOptions, userLogin?: string): Promise<Entity|Entity[]> {
 
         // normalize mixed parameters
         const target = (arguments.length > 1 && (targetOrEntity instanceof Function || typeof targetOrEntity === "string")) ? targetOrEntity as Function|string : undefined;
@@ -463,7 +463,7 @@ export class EntityManager {
 
         // execute save operation
         return new EntityPersistExecutor(this.connection, this.queryRunner, "remove", target, entity, options)
-            .execute()
+            .execute(userLogin || "")
             .then(() => entity);
     }
 
@@ -474,18 +474,18 @@ export class EntityManager {
      * Does not check if entity exist in the database, so query will fail if duplicate entity is being inserted.
      * You can execute bulk inserts using this method.
      */
-    async insert<Entity>(target: ObjectType<Entity>|EntitySchema<Entity>|string, entity: QueryDeepPartialEntity<Entity>|(QueryDeepPartialEntity<Entity>[])): Promise<InsertResult> {
+    async insert<Entity>(target: ObjectType<Entity>|EntitySchema<Entity>|string, entity: QueryDeepPartialEntity<Entity>|(QueryDeepPartialEntity<Entity>[]), userLogin: string): Promise<InsertResult> {
 
         // TODO: Oracle does not support multiple values. Need to create another nice solution.
         if (this.connection.driver instanceof OracleDriver && entity instanceof Array) {
-            const results = await Promise.all(entity.map(entity => this.insert(target, entity)));
+            const results = await Promise.all(entity.map(entity => this.insert(target, entity, userLogin)));
             return results.reduce((mergedResult, result) => Object.assign(mergedResult, result), {} as InsertResult);
         }
         return this.createQueryBuilder()
             .insert()
             .into(target)
             .values(entity)
-            .execute();
+            .execute(userLogin);
     }
 
     /**
@@ -495,7 +495,7 @@ export class EntityManager {
      * Does not check if entity exist in the database.
      * Condition(s) cannot be empty.
      */
-    update<Entity>(target: ObjectType<Entity>|EntitySchema<Entity>|string, criteria: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|any, partialEntity: QueryDeepPartialEntity<Entity>): Promise<UpdateResult> {
+    update<Entity>(target: ObjectType<Entity>|EntitySchema<Entity>|string, criteria: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|any, partialEntity: QueryDeepPartialEntity<Entity>, userLogin: string): Promise<UpdateResult> {
 
         // if user passed empty criteria or empty list of criterias, then throw an error
         if (criteria === undefined ||
@@ -515,14 +515,14 @@ export class EntityManager {
                 .update(target)
                 .set(partialEntity)
                 .whereInIds(criteria)
-                .execute();
+                .execute(userLogin);
 
         } else {
             return this.createQueryBuilder()
                 .update(target)
                 .set(partialEntity)
                 .where(criteria)
-                .execute();
+                .execute(userLogin);
         }
     }
 
@@ -533,7 +533,7 @@ export class EntityManager {
      * Does not check if entity exist in the database.
      * Condition(s) cannot be empty.
      */
-    delete<Entity>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>|string, criteria: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|any,  userLogin?: string): Promise<DeleteResult> {
+    delete<Entity>(targetOrEntity: ObjectType<Entity>|EntitySchema<Entity>|string, criteria: string|string[]|number|number[]|Date|Date[]|ObjectID|ObjectID[]|any,  userLogin: string): Promise<DeleteResult> {
 
         // if user passed empty criteria or empty list of criterias, then throw an error
         if (criteria === undefined ||
@@ -937,7 +937,7 @@ export class EntityManager {
     async increment<Entity>(entityClass: ObjectType<Entity>|EntitySchema<Entity>|string,
                             conditions: any,
                             propertyPath: string,
-                            value: number | string): Promise<UpdateResult> {
+                            value: number | string, userLogin: string): Promise<UpdateResult> {
 
         const metadata = this.connection.getMetadata(entityClass);
         const column = metadata.findColumnWithPropertyPath(propertyPath);
@@ -960,7 +960,7 @@ export class EntityManager {
             .update(entityClass)
             .set(values)
             .where(conditions)
-            .execute();
+            .execute(userLogin);
     }
 
     /**
@@ -969,7 +969,7 @@ export class EntityManager {
     async decrement<Entity>(entityClass: ObjectType<Entity>|EntitySchema<Entity>|string,
                             conditions: any,
                             propertyPath: string,
-                            value: number | string): Promise<UpdateResult> {
+                            value: number | string, userLogin: string): Promise<UpdateResult> {
 
         const metadata = this.connection.getMetadata(entityClass);
         const column = metadata.findColumnWithPropertyPath(propertyPath);
@@ -992,7 +992,7 @@ export class EntityManager {
             .update(entityClass)
             .set(values)
             .where(conditions)
-            .execute();
+            .execute(userLogin);
     }
 
     /**
