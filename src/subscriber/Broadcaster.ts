@@ -286,6 +286,7 @@ export class Broadcaster {
         metadata: EntityMetadata,
         entity?: ObjectLiteral,
         databaseEntity?: ObjectLiteral,
+        queryAndParameters?: [string, any[]],
         userLogin?: string
     ): void {
         if (entity && metadata.afterRemoveListeners.length) {
@@ -313,6 +314,7 @@ export class Broadcaster {
                         metadata: metadata,
                         databaseEntity: databaseEntity,
                         entityId: metadata.getEntityIdMixedMap(databaseEntity),
+                        queryAndParameters,
                         userLogin
                     });
                     if (executionResult instanceof Promise)

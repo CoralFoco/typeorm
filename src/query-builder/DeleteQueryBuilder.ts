@@ -112,7 +112,11 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity>
                 const broadcastResult = new BroadcasterResult();
                 queryRunner.broadcaster.broadcastAfterRemoveEvent(
                     broadcastResult,
-                    this.expressionMap.mainAlias!.metadata
+                    this.expressionMap.mainAlias!.metadata,
+                    undefined,
+                    undefined,
+                    [sql, parameters],
+                    userLogin
                 );
                 if (broadcastResult.promises.length > 0)
                     await Promise.all(broadcastResult.promises);
